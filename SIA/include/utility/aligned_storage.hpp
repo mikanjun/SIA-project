@@ -36,7 +36,7 @@ namespace sia
         }
         else
         {
-            return aligned_type<Size, Align, double>{ };
+            return aligned_type<Size, Align, max_align_t>{ };
         }
     }
 

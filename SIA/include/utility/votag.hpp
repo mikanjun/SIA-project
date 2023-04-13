@@ -12,11 +12,12 @@ namespace sia
     template <typename T>
     concept _votag_value_requirement = std::is_convertible_v<T, bool> && std::is_same_v<T, std::remove_cvref_t<T>>;
 
-    template <typename T1, typename T2>
-    constexpr std::pair<T1&, T2&> _votag_base_init_act(std::pair<T1&, T2&> target)
+    template <typename First, typename Second, typename Idx, typename... TagArgs>
+    constexpr std::pair<First, Second> _init_act(const Idx& idx, const TagArgs&... args) noexcept
     {
-        ++target.second;
-        return target;
+        std::pair<First, Second> ret{static_cast<First>(idx), static_cast<Second>(0)};
+        ((ret.first == args ? ++ret.second : 0), ...);
+        return ret;
     }
 
     template <typename Tag, size_t Size, typename Indices, typename Value_t>
@@ -25,7 +26,6 @@ namespace sia
     struct votag_base<Tag, Size, std::index_sequence<Indices...>, Value_t>
     {
         std::pair<Tag, Value_t> m_data[Size];
-        std::pair<Tag&, Value_t&> _init_actor;
 
         // constexpr votag_base()                             noexcept = delete;
         constexpr votag_base(const votag_base&)            noexcept = default;
@@ -34,14 +34,12 @@ namespace sia
         // constexpr votag_base& operator=(votag_base&&)      noexcept = delete;
 
         constexpr votag_base() noexcept : 
-            m_data{{static_cast<Tag>(Indices), static_cast<Value_t>(0)}...},
-            _init_actor{m_data[0].first, m_data[0].second}
+            m_data{{static_cast<Tag>(Indices), static_cast<Value_t>(0)}...}
         { }
         
         template <typename... TagArgs>
         constexpr votag_base(const TagArgs&... args) noexcept : 
-            m_data{{static_cast<Tag>(Indices), static_cast<Value_t>(0)}...},
-            _init_actor{(_votag_base_init_act<Tag, Value_t>({m_data[static_cast<size_t>(args)].first, m_data[static_cast<size_t>(args)].second}), ...)}
+            m_data{_init_act<Tag, Value_t>(Indices, args...)...}
         { }
 
         template <typename... TagArgs>
@@ -74,7 +72,9 @@ namespace sia
             requires (std::is_same_v<Tag, TagArgs> && ...)
         constexpr void remove(const TagArgs&... args) noexcept
         {
-            ((m_data[static_cast<size_t>(args)].second == static_cast<Value_t>(0) ? 0 : --m_data[static_cast<size_t>(args)].second), ...);
+            ((m_data[static_cast<size_t>(args)].second == static_cast<Value_t>(0) ?
+            ((m_data[static_cast<size_t>(args)].second == static_cast<Value_t>(0) ? 0 : ++m_data[static_cast<size_t>(args)].second), ...) :
+            --m_data[static_cast<size_t>(args)].second), ...);
         }
 
         constexpr void remove(const Tag& arg, const Value_t& val) noexcept
