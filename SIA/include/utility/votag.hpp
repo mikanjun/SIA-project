@@ -46,7 +46,8 @@ namespace sia
         constexpr size_t count(const TagArgs&... args) const noexcept
         {
             size_t ret{ };
-            ((ret += m_data[static_cast<size_t>(args)].second), ...);
+            auto _lam_get = [&] (const Tag& idx)->size_t {return static_cast<size_t>(m_data[static_cast<size_t>(idx)].second);};
+            ((ret += _lam_get(args)), ...);
             return ret;
         }
 
@@ -60,7 +61,8 @@ namespace sia
             requires (std::is_same_v<Tag, TagArgs> && ...)
         constexpr void insert(const TagArgs&... args) noexcept
         {
-            ((++m_data[static_cast<size_t>(args)].second), ...);
+            auto _lam_inc = [&] (const Tag& idx)->void {++m_data[static_cast<size_t>(idx)].second;};
+            ((_lam_inc(args)), ...);
         }
 
         constexpr void insert(const Tag& arg, const Value_t& val) noexcept
@@ -72,9 +74,28 @@ namespace sia
             requires (std::is_same_v<Tag, TagArgs> && ...)
         constexpr void remove(const TagArgs&... args) noexcept
         {
-            ((m_data[static_cast<size_t>(args)].second == static_cast<Value_t>(0) ?
-            ((m_data[static_cast<size_t>(args)].second == static_cast<Value_t>(0) ? 0 : ++m_data[static_cast<size_t>(args)].second), ...) :
-            --m_data[static_cast<size_t>(args)].second), ...);
+            Value_t _tras[Size]{ };
+            bool _block{false};
+            auto _lam_proc = [&] (const bool& is_zero, const size_t& idx)->void
+            {
+                if(!_block){
+                    if(is_zero)
+                    {
+                        _block = true;
+                        for(auto p_tras = _tras; auto& [tag, val] : m_data)
+                        {
+                            val += *p_tras;
+                            ++p_tras;
+                        }
+                    }
+                    else
+                    {
+                        ++_tras[idx];
+                        --m_data[idx].second;
+                    }
+                }
+            };
+            ((_lam_proc(m_data[static_cast<size_t>(args)].second == 0, static_cast<size_t>(args))), ...);
         }
 
         constexpr void remove(const Tag& arg, const Value_t& val) noexcept
@@ -88,7 +109,8 @@ namespace sia
         template <typename... TagArgs>
         constexpr void abandon(const TagArgs&... args) noexcept
         {
-            ((m_data[static_cast<size_t>(args)].second = 0), ...);
+            auto _lam_set_zero = [&] (const size_t& idx)->void {m_data[idx].second = 0;};
+            ((_lam_set_zero(static_cast<size_t>(args))), ...);
         }
 
         constexpr bool empty() const noexcept
