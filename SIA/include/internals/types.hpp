@@ -2,16 +2,15 @@
 
 namespace sia
 {
+    using size_t = decltype(sizeof(char));
+    using ptrdiff_t = decltype(static_cast<char*>(0) - static_cast<char*>(0));
+
     template <size_t Size>
     struct unsigned_chunk;
     template <size_t Size>
     struct signed_chunk;
 
-    using max_align_t = double;
-    using size_t = decltype(sizeof(char));
-    using ptrdiff_t = decltype(static_cast<char*>(0) - static_cast<char*>(0));
-
-    template <size_t Size, bool Signed = false>
+    template <size_t Size, bool Signed>
     consteval auto _get_byte_type()
     {
         if constexpr (Signed)
@@ -38,7 +37,7 @@ namespace sia
             }
             else
             {
-                return signed_chunk<Size>{};
+                return signed_chunk<Size>{ };
             }
         }
         else
@@ -65,7 +64,7 @@ namespace sia
             }
             else
             {
-                return unsigned_chunk<Size>{};
+                return unsigned_chunk<Size>{ };
             }
         }
     }
@@ -86,8 +85,22 @@ namespace sia
         signed_byte_t<1> m_data[Size];
     };
 
+    template <size_t Start = 1, size_t Next = Start*2>
+    consteval auto _get_max_align_type() noexcept
+    {
+        if constexpr (alignof(unsigned_byte_t<Start>) < alignof(unsigned_byte_t<Next>))
+        {
+            return _get_max_align_type<Next>();
+        }
+        else
+        {
+            return unsigned_byte_t<Start>{ };
+        }
+    }
+
     using byte = unsigned_byte_t<1>;
     using word = unsigned_byte_t<2>;
     using dword = unsigned_byte_t<4>;
     using qword = unsigned_byte_t<8>;
+    using max_align_t = decltype(_get_max_align_type<1>());
 } // namespace sia
