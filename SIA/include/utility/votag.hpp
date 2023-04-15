@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "SIA/include/internals/types.hpp"
+#include "SIA/include/type_traits/type_traits.hpp"
 
 namespace sia
 {
@@ -20,12 +21,12 @@ namespace sia
         return ret;
     }
 
-    template <typename Tag, size_t Size, typename Indices, typename Value_t>
+    template <typename Tag, size_t Size, typename Indices, typename Value>
     struct votag_base;
-    template <typename Tag, size_t Size, size_t... Indices, typename Value_t>
-    struct votag_base<Tag, Size, std::index_sequence<Indices...>, Value_t>
+    template <typename Tag, size_t Size, size_t... Indices, typename Value>
+    struct votag_base<Tag, Size, std::index_sequence<Indices...>, Value>
     {
-        std::pair<Tag, Value_t> m_data[Size];
+        std::pair<Tag, Value> m_data[Size];
 
         // constexpr votag_base()                             noexcept = delete;
         constexpr votag_base(const votag_base&)            noexcept = default;
@@ -34,12 +35,12 @@ namespace sia
         // constexpr votag_base& operator=(votag_base&&)      noexcept = delete;
 
         constexpr votag_base() noexcept : 
-            m_data{{static_cast<Tag>(Indices), static_cast<Value_t>(0)}...}
+            m_data{{static_cast<Tag>(Indices), static_cast<Value>(0)}...}
         { }
         
         template <typename... TagArgs>
         constexpr votag_base(const TagArgs&... args) noexcept : 
-            m_data{_init_act<Tag, Value_t>(Indices, args...)...}
+            m_data{_init_act<Tag, Value>(Indices, args...)...}
         { }
 
         template <typename... TagArgs>
@@ -65,7 +66,7 @@ namespace sia
             ((_lam_inc(args)), ...);
         }
 
-        constexpr void insert(const Tag& arg, const Value_t& val) noexcept
+        constexpr void insert(const Tag& arg, const Value& val) noexcept
         {
             m_data[static_cast<size_t>(arg)].second += val;
         }
@@ -74,7 +75,7 @@ namespace sia
             requires (std::is_same_v<Tag, TagArgs> && ...)
         constexpr void remove(const TagArgs&... args) noexcept
         {
-            Value_t _tras[Size]{ };
+            Value _tras[Size]{ };
             bool _block{false};
             auto _lam_proc = [&] (const bool& is_zero, const size_t& idx)->void
             {
@@ -98,7 +99,7 @@ namespace sia
             ((_lam_proc(m_data[static_cast<size_t>(args)].second == 0, static_cast<size_t>(args))), ...);
         }
 
-        constexpr void remove(const Tag& arg, const Value_t& val) noexcept
+        constexpr void remove(const Tag& arg, const Value& val) noexcept
         {
             if(m_data[static_cast<size_t>(arg)].second >= val)
             {
@@ -135,16 +136,16 @@ namespace sia
         {
             if(first != second)
             {
-                const Value_t tmp{m_data[static_cast<size_t>(first)].second};
+                const Value tmp{m_data[static_cast<size_t>(first)].second};
                 m_data[static_cast<size_t>(first)].second = m_data[static_cast<size_t>(second)].second;
                 m_data[static_cast<size_t>(second)].second = tmp;
             }
         }
     };
 
-    template <typename Tag, size_t Size, typename Value_t = size_t>
-        requires _votag_tag_requirement<Tag> && _votag_value_requirement<Value_t>
-    struct votag : public votag_base<Tag, Size, std::make_index_sequence<Size>, Value_t>
+    template <typename Tag, size_t Size, typename Value = size_t>
+        requires _votag_tag_requirement<Tag> && _votag_value_requirement<Value>
+    struct votag : public votag_base<Tag, Size, std::make_index_sequence<Size>, Value>
     {        
         // constexpr votag()                        noexcept = delete;
         constexpr votag(const votag&)            noexcept = default;
@@ -153,13 +154,13 @@ namespace sia
         // constexpr votag& operator=(votag&&)      noexcept = delete;
         
         constexpr votag() noexcept :
-            votag_base<Tag, Size, std::make_index_sequence<Size>, Value_t>{ }
+            votag_base<Tag, Size, std::make_index_sequence<Size>, Value>{ }
         { }
 
         template <typename... TagArgs>
             requires (std::is_same_v<Tag, TagArgs> || ...)
         constexpr votag(const TagArgs&... args) noexcept : 
-            votag_base<Tag, Size, std::make_index_sequence<Size>, Value_t>{args...}
+            votag_base<Tag, Size, std::make_index_sequence<Size>, Value>{args...}
         { }
     };
 } // namespace sia
