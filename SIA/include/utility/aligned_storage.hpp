@@ -6,16 +6,16 @@
 
 namespace sia
 {    
-    template <size_t Size, size_t Align, typename Aligned_t>
+    template <size_t Size, size_t Align, typename AlignType>
     union aligned_type
     {
-        Aligned_t m_data;
-        char _m_pad[Size];
+        AlignType m_data;
+        unsigned_byte_t<1> _m_pad[Size];
 
         template <typename Ret>
         constexpr Ret& as() noexcept
         {
-            return *reinterpret_cast<Ret*>(this);
+            return *static_cast<Ret*>(this);
         } 
     };
 
