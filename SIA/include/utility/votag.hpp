@@ -9,12 +9,13 @@
 namespace sia
 {
     template <typename T>
-    concept _votag_tag_requirement = (is_scoped_enum_v<T> || std::is_enum_v<T>) || std::is_integral_v<T>;
+    concept _votag_tag_requirement = (is_scoped_enum_v<T> || std::is_enum_v<T>) || (std::is_integral_v<T> && std::is_convertible_v<T, size_t>);
     template <typename T>
     concept _votag_value_requirement = requires(T t)
     {
         std::is_convertible_v<T, bool>;
         std::is_same_v<T, std::remove_cvref_t<T>>;
+        T{};
         ++t;
         --t;
         t-t;
@@ -79,25 +80,76 @@ namespace sia
             m_data[static_cast<size_t>(arg)].second += val;
         }
 
+        // template <typename... TagArgs>
+        //     requires (std::is_same_v<Tag, TagArgs> && ...)
+        // constexpr bool remove(const TagArgs&... args) noexcept
+        // {
+        //     ValueType _tras[Size]{ };
+        //     auto _lam_gather = [&] (const size_t& idx)->void {++_tras[idx];};
+        //     auto _lam_checker = [&] (const size_t& idx)->bool {return _tras[idx] <= m_data[idx].second;};
+        //     auto _lam_proc = [&] (const size_t& idx) {m_data[idx].second -= _tras[idx];};
+        //     (_lam_gather(static_cast<size_t>(args)), ...);
+        //     if((_lam_checker(Indices) || ...))
+        //     {
+        //         (_lam_proc(Indices), ...);
+        //         return true;
+        //     }
+        //     else
+        //     {
+        //         return false;
+        //     }
+        // }
+
         // Return true if success
         template <typename... TagArgs>
             requires (std::is_same_v<Tag, TagArgs> && ...)
         constexpr bool remove(const TagArgs&... args) noexcept
         {
-            ValueType _tras[Size]{ };
-            auto _lam_gather = [&] (const size_t& idx)->void {++_tras[idx];};
-            auto _lam_checker = [&] (const size_t& idx)->bool {return _tras[idx] <= m_data[idx].second;};
-            auto _lam_proc = [&] (const size_t& idx) {m_data[idx].second -= _tras[idx];};
-            (_lam_gather(static_cast<size_t>(args)), ...);
-            if((_lam_checker(Indices) || ...))
+            bool _proc_guard{false};
+            auto _lam_proc = [&] (const Tag& tag)->const Tag*
             {
-                (_lam_proc(Indices), ...);
-                return true;
-            }
-            else
+                if(!_proc_guard)
+                {
+                    if(ValueType{ } == m_data[static_cast<size_t>(tag)].second)
+                    {
+                        _proc_guard = true;
+                        return &tag;
+                    }
+                    else
+                    {
+                        --m_data[static_cast<size_t>(tag)].second;
+                        return nullptr;
+                    }
+                }
+                return nullptr;
+            };
+            bool _undo_guard{false};
+            auto _lam_undo_proc = [&] (const Tag* p_arg, const Tag& tag)
             {
-                return false;
-            }
+                if(!_undo_guard)
+                {
+                    if(p_arg == &tag)
+                    {
+                        _undo_guard = true;
+                    }
+                    else
+                    {
+                        ++m_data[static_cast<size_t>(tag)].second;
+                    }
+                }
+            };
+            auto _lam_undo = [&] (const Tag* p_arg)
+            {
+                if(!_undo_guard)
+                {
+                    if(p_arg != nullptr)
+                    {
+                        (_lam_undo_proc(p_arg, args), ...);
+                    }
+                }
+            };
+            (_lam_undo(_lam_proc(args)), ...);
+            return !_undo_guard;
         }
 
         // Return true if success

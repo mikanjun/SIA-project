@@ -15,43 +15,31 @@ namespace sia
         template <typename Ret>
         constexpr Ret& as() noexcept
         {
-            return *static_cast<Ret*>(this);
+            return *reinterpret_cast<Ret*>(this);
         }
     };
 
-    template <size_t Size, size_t Align>
+    template <typename size_t Size, size_t Align, size_t Target = 1>
     consteval auto _get_aligned_type() noexcept
     {
-        if constexpr (Align == alignof(unsigned_byte_t<1>))
-        {
-            return aligned_type<Size, Align, unsigned_byte_t<1>>{ };
-        }
-        else if constexpr (Align == alignof(unsigned_byte_t<2>))
-        {
-            return aligned_type<Size, Align, unsigned_byte_t<2>>{ };
-        }
-        else if constexpr (Align == alignof(unsigned_byte_t<4>))
-        {
-            return aligned_type<Size, Align, unsigned_byte_t<4>>{ };
-        }
-        else if constexpr (Align == alignof(unsigned_byte_t<8>))
-        {
-            return aligned_type<Size, Align, unsigned_byte_t<8>>{ };
-        }
-        else if constexpr (Align == alignof(max_align_t))
+        if constexpr (alignof(unsigned_byte_t<Target>) == alignof(max_align_t))
         {
             return aligned_type<Size, Align, max_align_t>{ };
         }
+        else if constexpr (Align == alignof(unsigned_byte_t<Target>))
+        {
+            return aligned_type<Size, Align, unsigned_byte_t<Target>>{ };
+        }
         else
         {
-            return;
+            return _get_aligned_type<Size, Align, Target*2>();
         }
     }
 
     template <size_t Size, size_t Align>
     struct aligned_storage
     {
-        using type = decltype(_get_aligned_type<Size, Align>());
+        using type = decltype(_get_aligned_type<Size, Align, 1>());
     };
 
     template <size_t Size, size_t Align>
