@@ -20,29 +20,29 @@ namespace sia
         --t;
         t-t;
         t+t;
-        t<=t;
         t=t;
+        t<=t;
     };
 
     template <typename Tag, size_t Size, typename Indices, typename ValueType>
-    struct votag_base;
+    struct votag_impl;
     template <typename Tag, size_t Size, size_t... Indices, typename ValueType>
-    struct votag_base<Tag, Size, std::index_sequence<Indices...>, ValueType>
+    struct votag_impl<Tag, Size, std::index_sequence<Indices...>, ValueType>
     {
         std::pair<Tag, ValueType> m_data[Size];
 
-        // constexpr votag_base()                             noexcept = delete;
-        constexpr votag_base(const votag_base&)            noexcept = default;
-        // constexpr votag_base(votag_base&&)                 noexcept = delete;
-        constexpr votag_base& operator=(const votag_base&) noexcept = default;
-        // constexpr votag_base& operator=(votag_base&&)      noexcept = delete;
+        // constexpr votag_impl()                             noexcept = delete;
+        constexpr votag_impl(const votag_impl&)            noexcept = default;
+        // constexpr votag_impl(votag_impl&&)                 noexcept = delete;
+        constexpr votag_impl& operator=(const votag_impl&) noexcept = default;
+        // constexpr votag_impl& operator=(votag_impl&&)      noexcept = delete;
 
-        constexpr votag_base() noexcept : 
+        constexpr votag_impl() noexcept : 
             m_data{{static_cast<Tag>(Indices), ValueType{ }}...}
         { }
         
         template <typename... TagArgs>
-        constexpr votag_base(const TagArgs&... args) noexcept : 
+        constexpr votag_impl(const TagArgs&... args) noexcept : 
             m_data{{static_cast<Tag>(Indices), ValueType{ }}...}
         {
             (++m_data[static_cast<size_t>(args)].second, ...);
@@ -51,7 +51,7 @@ namespace sia
         // Duplicated input must be check by user.
         template <typename... TagArgs>
             requires (std::is_same_v<Tag, TagArgs> && ...)
-        constexpr size_t count(const TagArgs&... args) const noexcept
+        constexpr ValueType count(const TagArgs&... args) const noexcept
         {
             ValueType ret{ };
             auto _lam_get = [&] (const size_t& idx)->ValueType {return m_data[idx].second;};
@@ -80,26 +80,6 @@ namespace sia
             m_data[static_cast<size_t>(arg)].second += val;
         }
 
-        // template <typename... TagArgs>
-        //     requires (std::is_same_v<Tag, TagArgs> && ...)
-        // constexpr bool remove(const TagArgs&... args) noexcept
-        // {
-        //     ValueType _tras[Size]{ };
-        //     auto _lam_gather = [&] (const size_t& idx)->void {++_tras[idx];};
-        //     auto _lam_checker = [&] (const size_t& idx)->bool {return _tras[idx] <= m_data[idx].second;};
-        //     auto _lam_proc = [&] (const size_t& idx) {m_data[idx].second -= _tras[idx];};
-        //     (_lam_gather(static_cast<size_t>(args)), ...);
-        //     if((_lam_checker(Indices) || ...))
-        //     {
-        //         (_lam_proc(Indices), ...);
-        //         return true;
-        //     }
-        //     else
-        //     {
-        //         return false;
-        //     }
-        // }
-
         // Return true if success
         template <typename... TagArgs>
             requires (std::is_same_v<Tag, TagArgs> && ...)
@@ -124,7 +104,7 @@ namespace sia
                 return nullptr;
             };
             bool _undo_guard{false};
-            auto _lam_undo_proc = [&] (const Tag* p_arg, const Tag& tag)
+            auto _lam_undo_proc = [&] (const Tag* p_arg, const Tag& tag)->void
             {
                 if(!_undo_guard)
                 {
@@ -138,7 +118,7 @@ namespace sia
                     }
                 }
             };
-            auto _lam_undo = [&] (const Tag* p_arg)
+            auto _lam_undo = [&] (const Tag* p_arg)->void
             {
                 if(!_undo_guard)
                 {
@@ -173,15 +153,14 @@ namespace sia
 
         constexpr bool empty() const noexcept
         {
-            bool ret{false};
             for(const auto& [tag, val] : m_data)
             {
-                if(ret |= static_cast<bool>(val))
+                if(static_cast<bool>(val))
                 {
-                    return ret;
+                    return false;
                 }
             }
-            return ret;
+            return true;
         }
 
         constexpr void reset() noexcept
@@ -194,7 +173,7 @@ namespace sia
 
         constexpr void swap(const Tag& first, const Tag& second) noexcept
         {
-            if(&first != &second)
+            if(first != second)
             {
                 const ValueType tmp{m_data[static_cast<size_t>(first)].second};
                 m_data[static_cast<size_t>(first)].second = m_data[static_cast<size_t>(second)].second;
@@ -205,7 +184,7 @@ namespace sia
 
     template <typename Tag, size_t Size, typename ValueType = size_t>
         requires _votag_tag_requirement<Tag> && _votag_value_requirement<ValueType>
-    struct votag : public votag_base<Tag, Size, std::make_index_sequence<Size>, ValueType>
+    struct votag : public votag_impl<Tag, Size, std::make_index_sequence<Size>, ValueType>
     {        
         // constexpr votag()                        noexcept = delete;
         constexpr votag(const votag&)            noexcept = default;
@@ -214,13 +193,13 @@ namespace sia
         // constexpr votag& operator=(votag&&)      noexcept = delete;
         
         constexpr votag() noexcept :
-            votag_base<Tag, Size, std::make_index_sequence<Size>, ValueType>{ }
+            votag_impl<Tag, Size, std::make_index_sequence<Size>, ValueType>{ }
         { }
 
         template <typename... TagArgs>
             requires (std::is_same_v<Tag, TagArgs> || ...)
         constexpr votag(const TagArgs&... args) noexcept : 
-            votag_base<Tag, Size, std::make_index_sequence<Size>, ValueType>{args...}
+            votag_impl<Tag, Size, std::make_index_sequence<Size>, ValueType>{args...}
         { }
     };
 } // namespace sia
