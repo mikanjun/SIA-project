@@ -3,6 +3,8 @@
 #include "SIA/include/internals/types.hpp"
 #include "SIA/include/type_traits/type_traits.hpp"
 
+#include <tuple>
+
 namespace sia
 {
     template <auto... Tags>
@@ -19,18 +21,14 @@ namespace sia
         constexpr bool query(const TagTypes&... args) const noexcept
         {
             size_t res {0};
-            auto _lam_check = [&] (const auto& arg)->bool
+            auto _lam_proc = [&] (const auto& arg)->void
             {
-                return ((Tags == arg) || ...);
-            };
-            auto _lam_proc = [&] (const bool& flag)->void
-            {
-                if(flag)
+                if(((Tags == arg) || ...))
                 {
                     ++res;
                 }
             };
-            (_lam_proc(_lam_check(args)), ...);
+            (_lam_proc(args), ...);
             return res == sizeof...(args);
         }
 
